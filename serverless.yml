@@ -1,0 +1,11 @@
+service: nest-lambda
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: dev
+  region: us-west-1
+
+functions:
+  nestApp:
+    handler: dist/main.handler
