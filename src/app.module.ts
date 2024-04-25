@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ElninvoiceModule } from './elninvoice/elninvoice.module';
+import { ElninvoiceModule } from './eInvoice-functions/sendInvoiceFunction.module';
 
 @Module({
   imports: [
