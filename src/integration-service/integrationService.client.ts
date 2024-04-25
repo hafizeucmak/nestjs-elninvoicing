@@ -1,4 +1,5 @@
 import * as soap from 'soap';
+import { TransferFileArgs } from 'src/dtos/transferFileArgs.dto';
 
 export class IntegrationServiceClient {
     private readonly serviceUrl: string;
@@ -17,18 +18,12 @@ export class IntegrationServiceClient {
         }
     }
 
-    async TransferSalesInvoiceFileAsync(sessionCode: string, transferFileArg: any): Promise<string> {
+    async TransferSalesInvoiceFileAsync(sessionCode: string, transferFileArg: TransferFileArgs): Promise<string> {
         try {
             const client = await soap.createClientAsync(this.serviceUrl);
             const transferResult = await client.TransferSalesInvoiceFileAsync({ sessionCode, transferFileArg });
             
-            if (transferResult.OperationCompleted) {
-                console.log("!!! TRANSFER SUCCESS !!!");
-                return transferResult.TransferFileUniqueId;
-            } else {
-                console.log("!!! TRANSFER FAILURE !!!");
-                return "";
-            }
+            console.log(transferResult);
         } catch (error) {
             if (error.response) {
                 console.log(error.response.body);

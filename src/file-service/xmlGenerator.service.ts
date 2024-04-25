@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable } from '@nestjs/common';
 import { create } from 'xmlbuilder2';
 import { v4 as uuidv4 } from 'uuid';
@@ -264,17 +264,71 @@ export class XmlGeneratorService {
         });
 
         const s3BucketName = bucketName;
-        const s3ObjectKey = bucketName + '-' + uuidv4(); // Concatenate bucket name with UUID
+        const uniqueId = uuidv4();
+        const s3ObjectKey = bucketName + '-' + uniqueId; // Concatenate bucket name with UUID
 
         try {
+            let bodyData;
+            if (typeof data === 'string') {
+                // If data is already a string, use it as is
+                bodyData = data;
+            } else if (Buffer.isBuffer(data)) {
+                // If data is a Buffer, convert it to a string
+                bodyData = data.toString('binary');
+            } else {
+                // If data is neither a string nor a Buffer, throw an error
+                throw new Error('Data must be of type string or Buffer');
+            }
+    
             const command = new PutObjectCommand({
                 Bucket: s3BucketName,
                 Key: s3ObjectKey,
-                Body: data ,
+                Body: bodyData ,
             });
             await s3Client.send(command);
-            const fileUrl = `https://${s3BucketName}.s3.${process.env.S3CLIENT_REGION}.amazonaws.com/${s3ObjectKey}`;
-            return fileUrl;
+            return uniqueId;
+
+        } catch (error) {
+            console.error('Error uploading file to S3:', error);
+            throw new Error('Failed to upload file to S3');
+        }
+    }
+
+    public async uploadZipToS3(data: any, bucketName : string): Promise<string> {
+
+        const s3Client = new S3Client({
+            region: process.env.S3CLIENT_REGION,
+            credentials: {
+                accessKeyId: process.env.S3CLIENT_ACCESSKEY,
+                secretAccessKey: process.env.S3CLIENT_SECRETKEY,
+            },
+        });
+
+        const s3BucketName = bucketName;
+        const uniqueId = uuidv4();
+        const s3ObjectKey = bucketName + '-' + uniqueId; // Concatenate bucket name with UUID
+
+        try {
+            let bodyData;
+            if (typeof data === 'string') {
+                // If data is already a string, use it as is
+                bodyData = data;
+            } else if (Buffer.isBuffer(data)) {
+                // If data is a Buffer, convert it to a string
+                bodyData = data.toString('binary');
+            } else {
+                // If data is neither a string nor a Buffer, throw an error
+                throw new Error('Data must be of type string or Buffer');
+            }
+    
+            const command = new PutObjectCommand({
+                Bucket: s3BucketName,
+                Key: s3ObjectKey,
+                Body: bodyData ,
+                ContentType: 'application/zip'
+            });
+            await s3Client.send(command);
+            return uniqueId;
 
         } catch (error) {
             console.error('Error uploading file to S3:', error);
