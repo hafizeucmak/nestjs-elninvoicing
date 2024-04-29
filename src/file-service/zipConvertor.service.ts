@@ -1,30 +1,37 @@
 import { Injectable } from '@nestjs/common';
 import * as JSZip from 'jszip';
 import * as crypto from 'crypto';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
+import * as AWS from 'aws-sdk';
 
 
 @Injectable()
 export class ZipConvertorService {
-    async generateZipAndHash(fileUrl: string): Promise<{ zipFile: Buffer, hash: string, uniqueId : uuidv4 }> {
+    async generateZipFile(uniqueId: string): Promise<string> {
         try {
-            console.log(fileUrl);
-           // const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-            const xmlData = await this.downloadFromS3(fileUrl);
 
+            const fileName = uniqueId + ".xml";
+            const xmlBucketNme = "xml-invoice";
+            const xmlData = await this.downloadFromS3(xmlBucketNme, fileName);
             const zip = new JSZip();
-            const uniqueId = uuidv4();
             zip.file(uniqueId, xmlData);
-
             const zipFile = await zip.generateAsync({ type: 'nodebuffer' });
+            await this.uploadZipToS32(zipFile, uniqueId, "zip-invoice");
+            return uniqueId;
 
-            const hash = await this.calculateMD5(zipFile);
-
-            return { zipFile, hash, uniqueId };
         } catch (error) {
             throw new Error('Failed to generate zip and hash: ' + error.message);
+        }
+    }
+
+    private md5 = crypto.createHash('md5');
+
+    public getMD5Hash(filebyteArray: Buffer): string {
+        if (filebyteArray != null && filebyteArray.length > 0) {
+            const hashData = this.md5.update(filebyteArray).digest('hex');
+            return hashData;
         }
     }
 
@@ -36,10 +43,8 @@ export class ZipConvertorService {
         });
     }
 
-    async downloadFromS3(uniqueId: any): Promise<any> {
+    async downloadFromS3(bucketName: string, uniqueId: any): Promise<any> {
         try {
-            const bucketName = "xml-invoice";
-            const objectKey = bucketName + '-' + uniqueId;
             const s3Client = new S3Client({
                 region: process.env.S3CLIENT_REGION,
                 credentials: {
@@ -50,7 +55,7 @@ export class ZipConvertorService {
 
             const command = new GetObjectCommand({
                 Bucket: bucketName,
-                Key: objectKey,
+                Key: uniqueId,
             });
 
             const response = await s3Client.send(command);
@@ -58,6 +63,63 @@ export class ZipConvertorService {
             return response.Body as Readable;
         } catch (error) {
             throw new Error(`Failed to download file from S3: ${error.message}`);
+        }
+    }
+
+    public async uploadZipToS3(data: any, uniqueId: string, bucketName: string) {
+
+        const s3Client = new S3Client({
+            region: process.env.S3CLIENT_REGION,
+            credentials: {
+                accessKeyId: process.env.S3CLIENT_ACCESSKEY,
+                secretAccessKey: process.env.S3CLIENT_SECRETKEY,
+            },
+        });
+
+        const s3BucketName = bucketName;
+
+        try {
+            let bodyData;
+            if (typeof data === 'string') {
+                bodyData = data;
+            } else if (Buffer.isBuffer(data)) {
+                bodyData = data.toString('binary');
+            } else {
+                throw new Error('Data must be of type string or Buffer');
+            }
+
+            const command = new PutObjectCommand({
+                Bucket: s3BucketName,
+                Key: uniqueId,
+                Body: bodyData,
+                ContentType: 'application/zip'
+            });
+
+            await s3Client.send(command);
+
+        } catch (error) {
+            console.error('Error uploading file to S3:', error);
+            throw new Error('Failed to upload file to S3');
+        }
+    }
+
+    public async uploadZipToS32(zipFileBuffer: Buffer, fileName: string, bucketName: string) {
+        const s3 = new AWS.S3();
+        const params = {
+            Bucket: bucketName,
+            Key: `${fileName}.zip`, // ensure the file extension is correct
+            Body: zipFileBuffer,
+            ContentType: 'application/zip', // correct MIME type for zip files
+            ContentEncoding: 'binary', // ensure the encoding is set to binary
+        };
+
+        try {
+            const data = await s3.upload(params).promise();
+            console.log('File uploaded successfully at', data.Location);
+            return data;
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            throw error;
         }
     }
 }

@@ -8,12 +8,12 @@ import { ElninvoiceModule } from './eInvoice-functions/sendInvoiceFunction.modul
   imports: [
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
-    MongooseModule.forRoot(process.env.MONGO_URL, {
-      dbName: process.env.MONGO_DB_NAME,
-      user: process.env.MONGO_USER,
-      pass: process.env.MONGO_PASSWORD,
-      readPreference: 'secondaryPreferred'
-    }),
+    // MongooseModule.forRoot(process.env.MONGO_URL, {
+    //   dbName: process.env.MONGO_DB_NAME,
+    //   user: process.env.MONGO_USER,
+    //   pass: process.env.MONGO_PASSWORD,
+    //   readPreference: 'secondaryPreferred'
+    // }),
     ElninvoiceModule
   ],
   controllers: [],
